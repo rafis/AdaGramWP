@@ -1,4 +1,4 @@
-# AdaGram
+# AdaGram (modified)
 
 Adaptive Skip-gram (AdaGram) model is a nonparametric extension of famous Skip-gram model implemented in word2vec software which  is able to learn multiple representations per word capturing different word meanings. This projects implements AdaGram in Julia language.
 
@@ -45,7 +45,18 @@ Here is the description of all parameters:
 
 ## Input format
 
-Training text should be formatted as for word2vec. Words are case-sensitive and are assumed to be separated by space characters. All punctuation should be removed unless specially intented to be preserved. You may use `utils/tokenize.sh INPUT_FILE OUTPUT_FILE` for simple tokenization with UNIX utils.
+Training text should have a specific format that has one pair of linked words per line. Each line has to start with a sentence number (to identify the end of a sentence), followed by the first linked word position, the first word, the second word position and the second word.
+Example, for the text: the old dog is god. the cat is not.
+1 4 is 5 god
+1 3 dog 4 is
+1 2 old 3 dog
+1 1 the 3 dog
+2 1 the 2 cat
+2 2 cat 3 is
+2 3 is 4 not
+3 ..
+
+(Obsolete: Training text should be formatted as for word2vec. Words are case-sensitive and are assumed to be separated by space characters. All punctuation should be removed unless specially intented to be preserved. You may use `utils/tokenize.sh INPUT_FILE OUTPUT_FILE` for simple tokenization with UNIX utils.)
 
 In order to train a model you should also provide a dictionary file with word frequency statistics in the following format:
 ```

@@ -132,6 +132,7 @@ include("kahan.jl")
 include("skip_gram.jl")
 include("stick_breaking.jl")
 include("textutil.jl")
+
 include("gradient.jl")
 include("predict.jl")
 include("util.jl")

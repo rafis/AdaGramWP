@@ -1,12 +1,14 @@
 import Base.BLAS.axpy!
 
-function inplace_train_vectors!(vm::VectorModel, doc::DenseArray{Tw},
-		window_length::Int,
+# Modified to have doc as a list of lists with words and their contexts
+# and train accordingly, instead of looking for a window of words
+function inplace_train_vectors!(vm::VectorModel, doc::ContiguousView{Any,1,Array{Any,1}},
+		#window_length::Int,
 		start_lr::Float64, total_words::Float64, words_read::DenseArray{Int64},
 		total_ll::DenseArray{Float64}; batch::Int=10000,
 		context_cut::Bool = true, sense_treshold::Float64=1e-32)
 
-	N = length(doc)
+	#N = length(doc)
 	in_grad = zeros(Tsf, M(vm), T(vm))
 	out_grad = zeros(Tsf, M(vm))
 
@@ -15,29 +17,34 @@ function inplace_train_vectors!(vm::VectorModel, doc::DenseArray{Tw},
 	max_senses = 0.
 
 	tic()
-	for i in 1:N
-		x = doc[i]
+	#for i in 1:N
+	#println("doc size: ", size(doc,1))
+	for i in 1:size(doc,1)
+	#println("the doc file, ", doc[i])
+		#x = doc[i]
+		contextLine = doc[i]
+		x = contextLine[1]
 		lr1 = max(start_lr * (1 - words_read[1] / (total_words+1)), start_lr * 1e-4)
 		lr2 = lr1
 
-		random_reduce = context_cut ? rand(1:window_length-1) : 0
-		window = window_length - random_reduce
+		# removed random_reduce
+		#random_reduce = context_cut ? rand(1:window_length-1) : 0
+		#window = window_length - random_reduce
 
 		z[:] = 0.
 
 		n_senses = var_init_z!(vm, x, z)
 		senses += n_senses
 		max_senses = max(max_senses, n_senses)
-		for j in max(1, i - window):min(N, i + window) #
-			if i == j continue end
-			var_update_z!(vm, x, doc[j], z)
+		#for j in max(1, i - window):min(N, i + window) #
+		for j in 2:length(contextLine) #
+			var_update_z!(vm, x, contextLine[j], z)
 		end
 
 		exp_normalize!(z)
 
-		for j in max(1, i - window):min(N, i + window)
-			if i == j continue end
-			y = doc[j]
+		for j in 2:length(contextLine)
+			y = contextLine[j]
 
 			ll = in_place_update!(vm, x, y, z, lr1, in_grad, out_grad, sense_treshold)
 
@@ -53,6 +60,7 @@ function inplace_train_vectors!(vm::VectorModel, doc::DenseArray{Tw},
 
 		if i % batch == 0
 			time_per_kword = batch / toq() / 1000
+			#@printf("%.2f%% %.4f %.4f %.4f %.2f/%.2f %.2f kwords/sec\n",
 			@printf("%.2f%% %.4f %.4f %.4f %.2f/%.2f %.2f kwords/sec\n",
 					words_read[1] / (total_words / 100),
 					total_ll[1], lr1, lr2, senses / i, max_senses, time_per_kword)
@@ -67,7 +75,6 @@ end
 function in_place_update!{Tw <: Integer}(vm::VectorModel,
 		x::Tw, y::Tw, z::DenseArray{Float64}, lr::Float64,
 		in_grad::DenseArray{Tsf, 2}, out_grad::DenseArray{Tsf}, sense_treshold::Float64)
-
 
 	return ccall((:inplace_update, "superlib"), Float32,
 		(Ptr{Float32}, Ptr{Float32},
@@ -107,6 +114,8 @@ function var_update_counts!(vm::VectorModel, x::Integer,
 	end
 end
 
+# Modified to call modified read_words properly
+# doc is now a list of lists of words w/their contexts
 function inplace_train_vectors!(vm::VectorModel, dict::Dictionary, path::AbstractString,
 		window_length::Int; batch::Int = 64000, start_lr::Float64 = 0.025,
 		log_path::Union{AbstractString, Void} = nothing, threshold::Float64 = Inf,
@@ -126,22 +135,24 @@ function inplace_train_vectors!(vm::VectorModel, dict::Dictionary, path::Abstrac
 
 		bytes_per_worker = convert(Int, floor(nbytes / nworkers()))
 
-		start_pos = bytes_per_worker * (id-1)
+		start_pos = bytes_per_worker * (id - 1)
 		end_pos = start_pos+bytes_per_worker
 
 		seek(file, start_pos)
 		align(file)
-		buffer = zeros(Int32, batch)
+		#buffer = zeros(Int32, batch)
 		while words_read[1] < train_words
-			doc = read_words(file, start_pos, end_pos, dict, buffer,
+			#doc = read_words(file, start_pos, end_pos, dict, buffer,
+			doc = read_words(file, start_pos, end_pos, dict, batch,
 				vm.frequencies, threshold, words_read, train_words)
 
-			println("$(length(doc)) words read, $(position(file))/$end_pos")
+			#println("$(length(doc)) words read (inc. context words), $(position(file))/$end_pos")
 			if length(doc) == 0
 				break
 			end
 
-			inplace_train_vectors!(vm, doc, window_length,
+			#inplace_train_vectors!(vm, doc, window_length,
+			inplace_train_vectors!(vm, doc,
 				start_lr, train_words, words_read, total_ll;
 				context_cut = context_cut, sense_treshold = sense_treshold)
 		end
@@ -158,7 +169,7 @@ function inplace_train_vectors!(vm::VectorModel, dict::Dictionary, path::Abstrac
 		fetch(refs[i])
 	end
 
-	println("Learning complete $(words_read[1]) / $train_words")
+	#println("Learning complete $(words_read[1]) / $train_words")
 
 	return words_read[1]
 end

@@ -46,7 +46,9 @@ Here is the description of all parameters:
 ## Input format
 
 Training text should have a specific format that has one pair of linked words per line. Each line has to start with a sentence number (to identify the end of a sentence), followed by the first linked word position, the first word, the second word position and the second word.
-Example, for the text: the old dog is god. the cat is not.
+Example, for the text: The old dog is God. The cat is not.
+
+```
 1 4 is 5 god
 1 3 dog 4 is
 1 2 old 3 dog
@@ -55,6 +57,7 @@ Example, for the text: the old dog is god. the cat is not.
 2 2 cat 3 is
 2 3 is 4 not
 3 ..
+```
 
 (Obsolete: Training text should be formatted as for word2vec. Words are case-sensitive and are assumed to be separated by space characters. All punctuation should be removed unless specially intented to be preserved. You may use `utils/tokenize.sh INPUT_FILE OUTPUT_FILE` for simple tokenization with UNIX utils.)
 

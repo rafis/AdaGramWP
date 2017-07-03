@@ -92,7 +92,7 @@ if args["stopwords"] != nothing
   stopwords = Set{AbstractString}(readdlm(args["stopwords"]))
 end
 
-println("glicerico modification")
+println("wordPairs modification")
 print("Building dictionary... ")
 vm, dict = read_from_file(args["dict"], args["dim"], args["prototypes"],
   args["min-freq"], args["remove-top-k"], stopwords; regex=Regex(args["regex"]))

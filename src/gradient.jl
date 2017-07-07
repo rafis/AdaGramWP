@@ -37,9 +37,9 @@ function inplace_train_vectors!(vm::VectorModel, doc::ContiguousView{Any,1,Array
 		senses += n_senses
 		max_senses = max(max_senses, n_senses)
 		#for j in max(1, i - window):min(N, i + window) #
-		println("New word processed: $x")
+		#println("New word processed: $x")
 		for j in 2:length(contextLine) #
-		  println("Context word:", contextLine[j])
+		  #println("Context word:", contextLine[j])
 		  var_update_z!(vm, x, contextLine[j], z)
 		end
 

@@ -13,10 +13,6 @@ s = ArgParseSettings()
     help = "file to save the clustering (in text format)"
     arg_type = AbstractString
     required = true
-  "--epochs"
-    help = "number of epochs to train"
-    arg_type = Int64
-    default = 1
   "--k"
     help = "number of clusters to use in k-means"
     arg_type = Int64
@@ -34,5 +30,5 @@ using AdaGram
 print("Starting clustering...")
 
 vm, dict = load_model(args["input"])
-clustering(vm, dict, args["output"], args["k"], args["min-prob"])
+clustering(vm, dict, args["output"], args["k"]; min_prob = args["min-prob"])
 println("Done!")

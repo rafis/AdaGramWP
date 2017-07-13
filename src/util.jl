@@ -292,9 +292,131 @@ function clustering(vm::VectorModel, dict::Dictionary, outputFile::AbstractStrin
 	println("Finished clustering")
 end
 
+# clustering routine using k-means, modified in the spirit of Clark2000 to account
+# for words that don't clearly fit in a cluster and merging clusters
+function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::AbstractString;
+	    K::Integer=100, min_prob=1e-2, termination_fraction=0.8, merging_threshold=0.9,
+        fraction_increase=0.05)
+    wordVectors = []
+    senses = Int64[]
+    wordFrequencies = Int64[]
+    clusters = []
+
+    function calculateCenter(currentCluster::Int64)
+        currentCenter = zeros(Float32, M(vm))
+        for iMember in 1:length(clusters[currentCluster])
+            currentCenter += wordVectors[clusters[currentCluster][iMember]]
+        end
+        #currentCenter /= length(clusters[iCluster]) # averages the centers of every member of the class
+        currentCenter /= norm(currentCenter) # normalizes the center vector
+        return currentCenter
+    end
+
+    # Builds arrays of senses and their vectors
+    for w in 1:V(vm)
+        probVec = expected_pi(vm, w)
+        for iMeaning in 1:T(vm)
+            # ignores senses that do not reach min probability
+            if probVec[iMeaning] > min_prob
+                push!(senses, w)
+                push!(wordFrequencies, round(vm.counts[iMeaning, w]))
+                currentVec = vm.In[:, iMeaning, w]
+                push!(wordVectors, currentVec/norm(currentVec)) # normalizes wordVectors
+            end
+        end
+    end
+
+
+    numSenses = length(senses) # total num of unique senses to cluster
+    orderFreq = sortperm(wordFrequencies, rev = true) # ordered indexes of most freq. senses
+
+    # Initialize clusters with the next most frequent sense available
+    # and cluster centers with zeros
+    clusterCenters = []
+    for iCluster in 1:K
+        push!(clusters, [orderFreq[iCluster]])
+        push!(clusterCenters, zeros(Float32, M(vm))) 
+    end
+
+    # initialize closestCluster, closestClusterDistance
+    closestCluster = zeros(Int32, numSenses)
+    closestClusterDistance = zeros(Float32, numSenses)
+
+    numClusteredSenses = K 
+    orderDistance = Int64[]
+    # keeps clustering senses until termination_fraction of them are clustered
+    while numClusteredSenses <= numSenses * termination_fraction
+        # calculate cluster centers
+        for iCluster in 1:K
+            clusterCenters[iCluster] = calculateCenter(iCluster)
+        end
+
+        mergeFlag = false
+        # If two clusters are close enough, merge and flag to return to loop start
+        for iCluster in 1:K
+            for iCluster2 in iCluster + 1:K
+                separation = dot(clusterCenters[iCluster], clusterCenters[iCluster2])
+                if separation > merging_threshold
+                    append!(clusters[iCluster], clusters[iCluster2])
+                    # Resets merged cluster to highest freq. unclustered sense
+                    numClusteredSenses += 1
+                    clusters[iCluster2] = [orderFreq[numClusteredSenses]]
+                    println("Merged 2 clusters, started a new one")
+                    mergeFlag = true
+                    break
+                end
+            end
+            if mergeFlag break end
+        end
+        if mergeFlag continue end
+
+        # calculate each sense's projection to cluster centers, only keep the closest one
+        for iWord in 1:numSenses
+            projection = -Inf
+            clusterId = 0
+            for iCluster in 1:K
+                dotProd = dot(wordVectors[iWord], clusterCenters[iCluster]) 
+                if dotProd > projection
+                    projection = dotProd
+                    clusterId = iCluster
+                end
+            end
+            closestCluster[iWord] = clusterId
+            closestClusterDistance[iWord] = projection
+        end
+
+        # get sense order relative to distance to their nearest cluster
+        orderDistance = sortperm(closestClusterDistance, rev = true)
+        numClusteredSenses += round(Int32, fraction_increase * numSenses)
+        # reset clusters to allow membership change
+        clusters = []
+        for iCluster in 1:K
+            push!(clusters, [])
+        end
+        # assign the best senses as members of their closest cluster
+        for iBest in 1:numClusteredSenses
+            push!(clusters[closestCluster[orderDistance[iBest]]], orderDistance[iBest])
+        end
+
+        @printf "Percentge of word senses clustered: %0.3f \n" numClusteredSenses/numSenses
+    end
+
+    # the less frequent senses fall into a cluster in position K+1 (unclustered senses)
+    push!(clusters, orderDistance[numClusteredSenses + 1:end])
+
+    # write to specified output file
+    fo = open(outputFile, "w")
+    for iCluster in 1:length(clusters)
+        for iMember in 1:length(clusters[iCluster])
+            @printf(fo, "%s\t%d\n", dict.id2word[senses[clusters[iCluster][iMember]]], iCluster)
+        end
+    end
+    close(fo)
+end
+
 export nearest_neighbors
 export disambiguate
 export pi, write_extended
 export cos_dist, preprocess, read_word2vec, write_word2vec
 export load_model
-export clustering
+export clustering, clarkClustering

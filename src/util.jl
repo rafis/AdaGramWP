@@ -295,12 +295,22 @@ end
 # clustering routine using k-means, modified in the spirit of Clark2000 to account
 # for words that don't clearly fit in a cluster and merging clusters
 function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::AbstractString;
-	    K::Integer=100, min_prob=1e-2, termination_fraction=0.8, merging_threshold=0.8,
+	    K::Integer=100, min_prob=1e-2, termination_fraction=0.8, merging_threshold=0.9,
         fraction_increase=0.05)
     wordVectors = []
     senses = Int64[]
     wordFrequencies = Int64[]
     clusters = []
+
+    function calculateCenter(currentCluster::Int64)
+        currentCenter = zeros(Float32, M(vm))
+        for iMember in 1:length(clusters[currentCluster])
+            currentCenter += wordVectors[clusters[currentCluster][iMember]]
+        end
+        #currentCenter /= length(clusters[iCluster]) # averages the centers of every member of the class
+        currentCenter /= norm(currentCenter) # normalizes the center vector
+        return currentCenter
+    end
 
     # Builds arrays of senses and their vectors
     for w in 1:V(vm)
@@ -338,16 +348,11 @@ function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::Abstract
     while numClusteredSenses <= numSenses * termination_fraction
         # calculate cluster centers
         for iCluster in 1:K
-            currentCenter = zeros(Float32, M(vm))
-            for iMember in 1:length(clusters[iCluster])
-                currentCenter += wordVectors[clusters[iCluster][iMember]]
-            end
-            #currentCenter /= length(clusters[iCluster]) # averages the centers of every member of the class
-            currentCenter /= norm(currentCenter) # normalizes the center vector
-            clusterCenters[iCluster] = currentCenter
+            clusterCenters[iCluster] = calculateCenter(iCluster)
         end
 
-        # If two clusters are close enough, merge them and recalculate their centers
+        mergeFlag = false
+        # If two clusters are close enough, merge and flag to return to loop start
         for iCluster in 1:K
             for iCluster2 in iCluster + 1:K
                 separation = dot(clusterCenters[iCluster], clusterCenters[iCluster2])
@@ -357,10 +362,13 @@ function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::Abstract
                     numClusteredSenses += 1
                     clusters[iCluster2] = [orderFreq[numClusteredSenses]]
                     println("Merged 2 clusters, started a new one")
+                    mergeFlag = true
+                    break
                 end
             end
+            if mergeFlag break end
         end
-
+        if mergeFlag continue end
 
         # calculate each sense's projection to cluster centers, only keep the closest one
         for iWord in 1:numSenses

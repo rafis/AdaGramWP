@@ -307,7 +307,7 @@ function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::Abstract
         for iMember in 1:length(clusters[currentCluster])
             currentCenter += wordVectors[clusters[currentCluster][iMember]]
         end
-        #currentCenter /= length(clusters[iCluster]) # averages the centers of every member of the class
+        #currentCenter /= length(clusters[currentCluster]) # averages the centers of every member of the class
         currentCenter /= norm(currentCenter) # normalizes the center vector
         return currentCenter
     end

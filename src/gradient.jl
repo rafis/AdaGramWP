@@ -8,6 +8,7 @@ function inplace_train_vectors!(vm::VectorModel, doc::ContiguousView{Any,1,Array
 		total_ll::DenseArray{Float64}; batch::Int=10000,
 		context_cut::Bool = true, sense_treshold::Float64=1e-32)
 
+	batch = 10000
 	#N = length(doc)
 	in_grad = zeros(Tsf, M(vm), T(vm))
 	out_grad = zeros(Tsf, M(vm))
@@ -23,6 +24,7 @@ function inplace_train_vectors!(vm::VectorModel, doc::ContiguousView{Any,1,Array
 	#println("the doc file, ", doc[i])
 		#x = doc[i]
 		contextLine = doc[i]
+		#println(contextLine)
 		x = contextLine[1]
 		lr1 = max(start_lr * (1 - words_read[1] / (total_words+1)), start_lr * 1e-4)
 		lr2 = lr1

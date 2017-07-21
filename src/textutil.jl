@@ -36,9 +36,10 @@ function looped_word_iterator(f::IO, start_pos::Int64, end_pos::Int64)
     while true
       posToWords = Dict()
       context = Dict()
+      println("New sentence")
       while newSentenceNbr == sentenceNbr
         push!(posToWords, words[2] => words[3]) # maps word positions to words
-        push!(posToWords, words[4] => words[5])
+        push!(posToWords, words[4] => words[5]) # needed to account for different possible word senses
         # creates entry in context dict for words appearing first time in sentence
         if !haskey(context, words[2]) push!(context, words[2] => []) end
         if !haskey(context, words[4]) push!(context, words[4] => []) end
@@ -56,6 +57,7 @@ function looped_word_iterator(f::IO, start_pos::Int64, end_pos::Int64)
       for pos in context
         word = posToWords[pos[1]]
         unshift!(context[pos[1]], word)
+        println(context[pos[1]])
         produce(context[pos[1]])
       end
     end

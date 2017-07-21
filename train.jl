@@ -97,6 +97,10 @@ print("Building dictionary... ")
 vm, dict = read_from_file(args["dict"], args["dim"], args["prototypes"],
   args["min-freq"], args["remove-top-k"], stopwords; regex=Regex(args["regex"]))
 println("Done!")
+println("Dictionary size:")
+println(dict)
+println("# words to train")
+println(sum(vm.frequencies))
 
 vm.alpha = args["alpha"]
 vm.d = args["d"]

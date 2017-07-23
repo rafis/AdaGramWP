@@ -150,7 +150,7 @@ function inplace_train_vectors!(vm::VectorModel, dict::Dictionary, path::Abstrac
 			doc = read_words(file, start_pos, end_pos, dict, batch,
 				vm.frequencies, threshold, words_read, train_words)
 
-			#println("$(length(doc)) words read (inc. context words), $(position(file))/$end_pos")
+			@printf("%d words read (inc. context words), %d/%d\n",length(doc), position(file), end_pos)
 			if length(doc) == 0
 				break
 			end

@@ -28,7 +28,7 @@ end
 function looped_word_iterator(f::IO, start_pos::Int64, end_pos::Int64)
   function producer()
     line = readline(f) # ignores possibly truncated line if parallel processing
-    start_pos = position(f) # for subsequent epochs, it knows where to start
+    #start_pos = position(f) # for subsequent epochs, it knows where to start
     line = readline(f) # first certainly complete sentence
     words = split(line)
     sentenceNbr = parse(Int32, words[1]) # input should be formatted accordingly
@@ -36,7 +36,6 @@ function looped_word_iterator(f::IO, start_pos::Int64, end_pos::Int64)
     while true
       posToWords = Dict()
       context = Dict()
-      println("New sentence")
       while newSentenceNbr == sentenceNbr
         push!(posToWords, words[2] => words[3]) # maps word positions to words
         push!(posToWords, words[4] => words[5]) # needed to account for different possible word senses
@@ -57,7 +56,6 @@ function looped_word_iterator(f::IO, start_pos::Int64, end_pos::Int64)
       for pos in context
         word = posToWords[pos[1]]
         unshift!(context[pos[1]], word)
-        println(context[pos[1]])
         produce(context[pos[1]])
       end
     end
@@ -157,7 +155,6 @@ function read_words(f::IOStream, start_pos::Int64, end_pos::Int64,
   #while i <= length(doc) && words_read[1] < total_words
   while i <= batch && words_read[1] < total_words
     contextLine = consume(contexts)
-    #println(contextLine)
     id = get(dict.word2id, contextLine[1], -1)
     if id == -1
       continue
@@ -173,13 +170,11 @@ function read_words(f::IOStream, start_pos::Int64, end_pos::Int64,
       if idContext == -1 continue end
       push!(idContextLine, idContext)
     end
-    #println(idContextLine, " index: ", i)
 
     if length(idContextLine) > 1
       push!(doc, idContextLine)
       i += 1
     end
-    #println("doc last line ", doc[i])
   end
 
   return view(doc, 1:i-1)

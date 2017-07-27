@@ -30,5 +30,5 @@ using AdaGram
 print("Starting clustering...")
 
 vm, dict = load_model(args["input"])
-clustering(vm, dict, args["output"], args["k"]; min_prob = args["min-prob"])
+clarkClustering(vm, dict, args["output"]; K = args["k"], min_prob = args["min-prob"])
 println("Done!")

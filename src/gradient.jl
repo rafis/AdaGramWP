@@ -19,12 +19,9 @@ function inplace_train_vectors!(vm::VectorModel, doc::ContiguousView{Any,1,Array
 
 	tic()
 	#for i in 1:N
-	#println("doc size: ", size(doc,1))
 	for i in 1:size(doc,1)
-	#println("the doc file, ", doc[i])
 		#x = doc[i]
 		contextLine = doc[i]
-		#println(contextLine)
 		x = contextLine[1]
 		lr1 = max(start_lr * (1 - words_read[1] / (total_words+1)), start_lr * 1e-4)
 		lr2 = lr1
@@ -39,9 +36,7 @@ function inplace_train_vectors!(vm::VectorModel, doc::ContiguousView{Any,1,Array
 		senses += n_senses
 		max_senses = max(max_senses, n_senses)
 		#for j in max(1, i - window):min(N, i + window) #
-		#println("New word processed: $x")
 		for j in 2:length(contextLine) #
-		  #println("Context word:", contextLine[j])
 		  var_update_z!(vm, x, contextLine[j], z)
 		end
 

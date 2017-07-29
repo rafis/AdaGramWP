@@ -408,7 +408,7 @@ function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::Abstract
     fo = open(outputFile, "w")
     for iCluster in 1:length(clusters)
         for iMember in 1:length(clusters[iCluster])
-            @printf(fo, "%s\t%d\n", dict.id2word[senses[clusters[iCluster][iMember]]], iCluster)
+            @printf(fo, "%d\t%s\n", iCluster, dict.id2word[senses[clusters[iCluster][iMember]]])
         end
     end
     close(fo)

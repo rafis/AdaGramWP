@@ -295,11 +295,11 @@ end
 # clustering routine using k-means, modified in the spirit of Clark2000 to account
 # for words that don't clearly fit in a cluster and merging clusters
 function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::AbstractString;
-	    K::Integer=100, min_prob=1e-2, termination_fraction=0.8, merging_threshold=0.9,
-        fraction_increase=0.05)
+	    K::Integer=15, min_prob=1e-2, termination_fraction=0.8, merging_threshold=0.9,
+        fraction_increase=0.05, tag_flag = false, dict_path = "null", min_freq = 10)
     wordVectors = []
     senses = Int64[]
-    wordFrequencies = Int64[]
+    senseFrequencies = Int64[]
     clusters = []
 
     function calculateCenter(currentCluster::Int64)
@@ -312,6 +312,56 @@ function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::Abstract
         return currentCenter
     end
 
+    # Creates a dictionary that will store each word root in the
+    # dict_path provided, with its different tags
+    # and corresponding frequency ranking
+    function loadTaggedDict(dict_path::AbstractString, min_freq::Int)
+        wordDict = Dict()
+        fi = open(dict_path, "r")
+        while !eof(fi)
+            line = split(readline(fi))
+            sense = line[1]
+            senseFreq = parse(Int, line[2])
+
+            # only stores words that occur at least min-freq times
+            if senseFreq >= min_freq
+                # look for the tag
+                splitWord = rsplit(UTF8String(sense), "[", limit = 2)
+                taggedPart = rsplit(UTF8String(splitWord[end]), ".", limit = 2)
+                if length(taggedPart) > 1
+                    tag = taggedPart[end]
+                else
+                    tag = ""
+                end
+                # look for the root word
+                if length(splitWord) > 1
+                    wordKey = splitWord[1]
+                else
+                    wordKey = taggedPart[1]
+                end
+
+                if !haskey(wordDict, wordKey)
+                    wordDict[wordKey] = []
+                end
+                push!(wordDict[wordKey], [tag, senseFreq])
+            end
+        end
+
+        # calculates frequency ranking of tag compared to other
+        # tags for the same word
+        for iEntry in wordDict
+            suma = 0
+            for iValue in iEntry[2]
+                suma += iValue[2]
+            end
+            for iValue in iEntry[2]
+                iValue[2] /= suma
+            end
+        end
+        close(fi)
+        return wordDict
+    end
+
     # Builds arrays of senses and their vectors
     for w in 1:V(vm)
         probVec = expected_pi(vm, w)
@@ -319,7 +369,7 @@ function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::Abstract
             # ignores senses that do not reach min probability
             if probVec[iMeaning] > min_prob
                 push!(senses, w)
-                push!(wordFrequencies, round(vm.counts[iMeaning, w]))
+                push!(senseFrequencies, round(vm.counts[iMeaning, w]))
                 currentVec = vm.In[:, iMeaning, w]
                 push!(wordVectors, currentVec/norm(currentVec)) # normalizes wordVectors
             end
@@ -328,7 +378,7 @@ function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::Abstract
 
 
     numSenses = length(senses) # total num of unique senses to cluster
-    orderFreq = sortperm(wordFrequencies, rev = true) # ordered indexes of most freq. senses
+    orderFreq = sortperm(senseFrequencies, rev = true) # ordered indexes of most freq. senses
 
     # Initialize clusters with the next most frequent sense available
     # and cluster centers with zeros
@@ -404,13 +454,63 @@ function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::Abstract
     # the less frequent senses fall into a cluster in position K+1 (unclustered senses)
     push!(clusters, orderDistance[numClusteredSenses + 1:end])
 
-    # write to specified output file
     fo = open(outputFile, "w")
-    for iCluster in 1:length(clusters)
-        for iMember in 1:length(clusters[iCluster])
-            @printf(fo, "%d\t%s\n", iCluster, dict.id2word[senses[clusters[iCluster][iMember]]])
+    # different routes if words must be tagged or not
+    counterNotFound = 0
+    if tag_flag
+        println("Writing tagged clusters file")
+        wordDict = loadTaggedDict(dict_path, min_freq)
+        for iCluster in 1:length(clusters)
+            for iMember in 1:length(clusters[iCluster])
+                wordId = senses[clusters[iCluster][iMember]] 
+                word = dict.id2word[wordId]
+                notFound = false
+
+                # ranks the sense relative to the total word count
+                senseFreq = senseFrequencies[clusters[iCluster][iMember]]
+                wordFreq = vm.frequencies[wordId]
+                senseRank = senseFreq / wordFreq
+
+                if !haskey(wordDict, word)
+                    # try to find lowercase version
+                    word = string(lowercase(word[1]), word[2:end])
+                    if !haskey(wordDict, word)
+                        #println("$word not found in dictionary")
+                        counterNotFound += 1
+                        tag = ""
+                        notFound = true
+                    end
+                end
+                if !notFound
+                    # compares sense rank to the rank of the tags for the word
+                    # to assign most adequate tag
+                    arrayTags = wordDict[word]
+                    rankDistance = Inf
+                    tag = ""
+                    for iTag in arrayTags
+                        currentDistance = abs(iTag[2] - senseRank) 
+                        if currentDistance < rankDistance
+                            rankDistance = currentDistance
+                            tag = iTag[1]
+                        end
+                    end
+                end
+                taggedWord = string(word, ".", tag)
+                @printf(fo, "%d\t%s\n", iCluster, taggedWord)
+            end
+        end
+        println("$counterNotFound words not found in dictionary")
+    else
+        # write to specified output file
+        println("Writing clusters file")
+        for iCluster in 1:length(clusters)
+            for iMember in 1:length(clusters[iCluster])
+                @printf(fo, "%d\t%s\n", iCluster, dict.id2word[senses[clusters[iCluster][iMember]]])
+            end
         end
     end
+
+    println("Finished writing tagged clusters file")
     close(fo)
 end
 

@@ -514,9 +514,27 @@ function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::Abstract
     close(fo)
 end
 
+# Writes embeddings to file to be used for visualization with TensorBoard
+function writeEmbeddings(vm::VectorModel, embeddings_file::AbstractString; min_prob = 1e-2)
+    fo = open(embeddings_file, "w")
+    for iWord in 1:V(vm)
+        probVec = expected_pi(vm, iWord)
+        for iSense in 1:T(vm)
+            if probVec[iSense] > min_prob
+                for iDim in 1:M(vm)
+                    @printf(fo, "%f\t", vm.In[iDim, iSense, iWord])
+                end
+                @printf(fo, "\n")
+            end
+        end
+        @printf(fo, "\n")
+    end
+    close(fo)
+end
+
 export nearest_neighbors
 export disambiguate
 export pi, write_extended
 export cos_dist, preprocess, read_word2vec, write_word2vec
 export load_model
-export clustering, clarkClustering
+export clustering, clarkClustering, writeEmbeddings

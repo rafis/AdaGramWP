@@ -292,11 +292,16 @@ function clustering(vm::VectorModel, dict::Dictionary, outputFile::AbstractStrin
 	println("Finished clustering")
 end
 
-# clustering routine using k-means, modified in the spirit of Clark2000 to account
-# for words that don't clearly fit in a cluster, as well as cluster merging
+# clustering routine using k-means with cosine distance, modified in the spirit of Clark2000 to account
+# for words that don't clearly fit in a cluster, as well as cluster merging.
+# Added tag_flag to find most appropriate tag from separate tagged dictionary file (tagged
+# with Link Grammar) and write it in the clustered file (for evaluation of clusters purposes).
+# Added embeddings_flag to write to file the embedding vectors of the words (for visualization purposes).
 function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::AbstractString;
 	    K::Integer=15, min_prob=1e-2, termination_fraction=0.8, merging_threshold=0.9,
-        fraction_increase=0.05, tag_flag = false, dict_path = "null", min_freq = 10)
+        fraction_increase=0.05, tag_flag = false, dict_path = "null", min_freq = 10, 
+        embeddings_flag = false, embeddings_filename = "embeddings.dat")
+    embeddings = [] # non-normalized embeddings
     wordVectors = []
     senses = Int64[]
     senseFrequencies = Int64[]
@@ -371,6 +376,7 @@ function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::Abstract
                 push!(senses, w)
                 push!(senseFrequencies, round(vm.counts[iMeaning, w]))
                 currentVec = vm.In[:, iMeaning, w]
+                push!(embeddings, currentVec)
                 push!(wordVectors, currentVec/norm(currentVec)) # normalizes wordVectors
             end
         end
@@ -496,21 +502,39 @@ function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::Abstract
                     end
                 end
                 taggedWord = string(word, ".", tag)
-                @printf(fo, "%d\t%s\n", iCluster, taggedWord)
+                @printf(fo, "%s\t%d\n", taggedWord, iCluster)
             end
         end
         println("$counterNotFound words not found in dictionary")
     else
-        # write to specified output file
-        println("Writing clusters file")
-        for iCluster in 1:length(clusters)
-            for iMember in 1:length(clusters[iCluster])
-                @printf(fo, "%d\t%s\n", iCluster, dict.id2word[senses[clusters[iCluster][iMember]]])
+        @printf(fo, "Word\tClusterNbr\n")
+        # decides if write embeddings or not
+        if embeddings_flag
+            fEmbeddings = open(embeddings_filename, "w")
+            # write to specified output file
+            println("Writing clusters file")
+            for iCluster in 1:length(clusters)
+                for iMember in 1:length(clusters[iCluster])
+                    @printf(fo, "%s\t%d\n", dict.id2word[senses[clusters[iCluster][iMember]]], iCluster)
+                    for iDim in 1:M(vm)
+                        @printf(fEmbeddings, "%f ", embeddings[clusters[iCluster][iMember]][iDim])
+                    end
+                    @printf(fEmbeddings, "\n")
+                end
+            end
+            close(fEmbeddings)
+        else
+            # write to specified output file
+            println("Writing clusters file")
+            for iCluster in 1:length(clusters)
+                for iMember in 1:length(clusters[iCluster])
+                    @printf(fo, "%s\t%d\n", dict.id2word[senses[clusters[iCluster][iMember]]], iCluster)
+                end
             end
         end
     end
 
-    println("Finished writing tagged clusters file")
+    println("Finished writing clusters file")
     close(fo)
 end
 

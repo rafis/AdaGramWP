@@ -293,7 +293,7 @@ function clustering(vm::VectorModel, dict::Dictionary, outputFile::AbstractStrin
 end
 
 # clustering routine using k-means, modified in the spirit of Clark2000 to account
-# for words that don't clearly fit in a cluster and merging clusters
+# for words that don't clearly fit in a cluster, as well as cluster merging
 function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::AbstractString;
 	    K::Integer=15, min_prob=1e-2, termination_fraction=0.8, merging_threshold=0.9,
         fraction_increase=0.05, tag_flag = false, dict_path = "null", min_freq = 10)
@@ -515,21 +515,23 @@ function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::Abstract
 end
 
 # Writes embeddings to file to be used for visualization with TensorBoard
-function writeEmbeddings(vm::VectorModel, embeddings_file::AbstractString; min_prob = 1e-2)
+function writeEmbeddings(vm::VectorModel, dict::Dictionary, embeddings_file::AbstractString; min_prob = 1e-2)
     fo = open(embeddings_file, "w")
+    fMetadata = open(string("metadata_", embeddings_file), "w")
     for iWord in 1:V(vm)
         probVec = expected_pi(vm, iWord)
         for iSense in 1:T(vm)
             if probVec[iSense] > min_prob
                 for iDim in 1:M(vm)
-                    @printf(fo, "%f\t", vm.In[iDim, iSense, iWord])
+                    @printf(fo, "%f ", vm.In[iDim, iSense, iWord])
                 end
                 @printf(fo, "\n")
+                @printf(fMetadata, "%s\n", dict.id2word[iWord])
             end
         end
-        @printf(fo, "\n")
     end
     close(fo)
+    close(fMetadata)
 end
 
 export nearest_neighbors

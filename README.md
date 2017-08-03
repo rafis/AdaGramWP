@@ -154,8 +154,16 @@ As one may see, model correctly estimated probabilities of each sense with quite
 
 A k-means clustering algorithm is provided to classify words in a given number of clusters (default 100) using their embeddings. The algorithm is taken from the one included in word2vec. Because a word can have different meanings, they can (and should in many cases) be assigned to different clusters. The algorithm writes word meanings above a given prior probability minimum (default 1e-3) and the cluster they belong to.
 ```
-julia> clustering(vm, dict, "clustering_output_file", 10; min_prob=1e-3)
+julia> clustering(vm, dict, outputFile"clustering_output_file", 10; min_prob=1e-3)
 ```
+
+A variation of k-means clustering is also provided, inspired by the clustering algorithm by Clark (2000) where only termination_fraction of the words get assigned to clusters (the ones closest to their closest cluster) and nearby clusters can merge if they're closer than merging_threshold. The function's prototype is:
+```
+function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::AbstractString;
+	    K::Integer=100, min_prob=1e-2, termination_fraction=0.8, merging_threshold=0.9,
+        fraction_increase=0.05)
+```
+Clark, 2000: http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.480.9220&rep=rep1&type=pdf
 
 Plase refer to [API documentation](https://github.com/sbos/AdaGram.jl/wiki/API) for more detailed usage info.
 ## Future work

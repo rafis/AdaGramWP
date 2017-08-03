@@ -367,6 +367,8 @@ function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::Abstract
         return wordDict
     end
 
+    # Clustering program starts
+
     # Builds arrays of senses and their vectors
     for w in 1:V(vm)
         probVec = expected_pi(vm, w)
@@ -399,7 +401,7 @@ function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::Abstract
     closestClusterDistance = zeros(Float32, numSenses)
 
     numClusteredSenses = K 
-    orderDistance = Int64[]
+    orderDistance = Int32[]
     # keeps clustering senses until termination_fraction of them are clustered
     while numClusteredSenses <= numSenses * termination_fraction
         # calculate cluster centers
@@ -409,7 +411,7 @@ function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::Abstract
 
         mergeFlag = false
         # If two clusters are close enough, merge and flag to return to loop start
-        for iCluster in 1:K
+        for iCluster in 1:K - 1
             for iCluster2 in iCluster + 1:K
                 separation = dot(clusterCenters[iCluster], clusterCenters[iCluster2])
                 if separation > merging_threshold
@@ -417,7 +419,7 @@ function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::Abstract
                     # Resets merged cluster to highest freq. unclustered sense
                     numClusteredSenses += 1
                     clusters[iCluster2] = [orderFreq[numClusteredSenses]]
-                    println("Merged 2 clusters, started a new one")
+                    println("Merged clusters $iCluster and $iCluster2, reassigned the latter")
                     mergeFlag = true
                     break
                 end
@@ -438,7 +440,7 @@ function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::Abstract
                 end
             end
             closestCluster[iWord] = clusterId
-            closestClusterDistance[iWord] = projection
+            closestClusterDistance[iWord] = projection # cosine distance, larger is closer
         end
 
         # get sense order relative to distance to their nearest cluster
@@ -459,6 +461,11 @@ function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::Abstract
 
     # the less frequent senses fall into a cluster in position K+1 (unclustered senses)
     push!(clusters, orderDistance[numClusteredSenses + 1:end])
+    println("Cluster size percentage:")
+    for i in 1:K + 1
+        @printf("%0.2f ", length(clusters[i])/numSenses * 100)
+    end
+    @printf("\n")
 
     fo = open(outputFile, "w")
     # different routes if words must be tagged or not

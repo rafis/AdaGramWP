@@ -8,6 +8,11 @@ function adagram_isblank(s::AbstractString)
         end),s)
 end
 
+# added for wordPairs
+function adagram_iseol(c::Char)
+  return c == '\n' 
+end
+
 function word_iterator(f::IO, end_pos::Int64=-1)
   function producer()
     while (end_pos < 0 || position(f) < end_pos) && !eof(f)
@@ -27,9 +32,7 @@ end
 #           items are its context words
 function looped_word_iterator(f::IO, start_pos::Int64, end_pos::Int64)
   function producer()
-    line = readline(f) # ignores possibly truncated line if parallel processing
-    #start_pos = position(f) # for subsequent epochs, it knows where to start
-    line = readline(f) # first certainly complete sentence
+    line = readline(f)
     words = split(line)
     sentenceNbr = parse(Int32, words[1]) # input should be formatted accordingly
     newSentenceNbr = sentenceNbr
@@ -56,6 +59,7 @@ function looped_word_iterator(f::IO, start_pos::Int64, end_pos::Int64)
       for pos in context
         word = posToWords[pos[1]]
         unshift!(context[pos[1]], word)
+        println(context[pos[1]])
         produce(context[pos[1]])
       end
     end
@@ -104,6 +108,15 @@ function align(f::IO)
   end
 
   seek(f, position(f)-1)
+end
+
+# added for WordPairs
+function align_eol(f::IO)
+  while !adagram_iseol(read(f, Char))
+    continue
+  end
+
+  seek(f, position(f))
 end
 
 function read_words(f::IO,

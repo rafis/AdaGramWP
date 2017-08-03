@@ -138,7 +138,9 @@ function inplace_train_vectors!(vm::VectorModel, dict::Dictionary, path::Abstrac
 		end_pos = start_pos+bytes_per_worker
 
 		seek(file, start_pos)
-		align(file)
+		#align(file)
+		align_eol(file)
+		start_pos = position(file)
 		#buffer = zeros(Int32, batch)
 		while words_read[1] < train_words
 			#doc = read_words(file, start_pos, end_pos, dict, buffer,

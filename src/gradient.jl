@@ -129,6 +129,8 @@ function inplace_train_vectors!(vm::VectorModel, dict::Dictionary, path::Abstrac
 	words_read = shared_zeros(Int64, (1,))
 	total_ll = shared_zeros(Float64, (2,))
 
+	realDict = Dict()
+
 	function do_work(id::Int)
 		file = open(path)
 

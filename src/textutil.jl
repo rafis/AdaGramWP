@@ -59,7 +59,6 @@ function looped_word_iterator(f::IO, start_pos::Int64, end_pos::Int64)
       for pos in context
         word = posToWords[pos[1]]
         unshift!(context[pos[1]], word)
-        println(context[pos[1]])
         produce(context[pos[1]])
       end
     end
@@ -168,6 +167,7 @@ function read_words(f::IOStream, start_pos::Int64, end_pos::Int64,
   #while i <= length(doc) && words_read[1] < total_words
   while i <= batch && words_read[1] < total_words
     contextLine = consume(contexts)
+
     id = get(dict.word2id, contextLine[1], -1)
     if id == -1
       continue

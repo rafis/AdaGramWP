@@ -299,7 +299,7 @@ end
 # Added embeddings_flag to write to file the embedding vectors of the words (for visualization purposes).
 function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::AbstractString;
 	    K::Integer=15, min_prob=1e-2, termination_fraction=0.8, merging_threshold=0.9,
-        fraction_increase=0.05, tag_flag = false, dict_path = "null", min_freq = 10, 
+        fraction_increase=0.05, tag_flag = false, dict_path = "null", min_freq = 1, 
         embeddings_flag = false, embeddings_filename = "embeddings.dat")
     embeddings = [] # non-normalized embeddings
     wordVectors = []
@@ -333,7 +333,10 @@ function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::Abstract
                 # look for the tag
                 splitWord = rsplit(UTF8String(sense), "[", limit = 2)
                 taggedPart = rsplit(UTF8String(splitWord[end]), ".", limit = 2)
+                #finalTaggedPart = rsplit(UTF8String(taggedPart[end]), "#", limit = 2)
+
                 if length(taggedPart) > 1
+                #    tag = finalTaggedPart[end]
                     tag = taggedPart[end]
                 else
                     tag = ""

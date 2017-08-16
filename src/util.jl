@@ -510,8 +510,10 @@ function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::Abstract
                             tag = iTag[1]
                         end
                     end
+                    taggedWord = string(word, ".", tag)
+                else 
+                    taggedWord = string(word, tag)
                 end
-                taggedWord = string(word, ".", tag)
                 @printf(fo, "%s\t%d\n", taggedWord, iCluster)
             end
         end

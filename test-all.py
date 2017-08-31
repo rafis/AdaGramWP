@@ -86,5 +86,5 @@ if __name__ == '__main__':
         os.remove('__result__.tmp')
         print('\n')
 
-    subprocess.call('./run.sh benchmark/test_wwsi.jl %s __result__.tmp' % model, shell=True)
-    os.remove('__result__.tmp')
+    #subprocess.call('./run.sh benchmark/test_wwsi.jl %s __result__.tmp' % model, shell=True)
+    #os.remove('__result__.tmp')

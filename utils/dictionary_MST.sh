@@ -1,3 +1,4 @@
 #!/bin/bash
+ADAGRAM_PATH="$HOME/.julia/v0.6/AdaGram"
 
-"/home/andres/.julia/v0.4/AdaGram/run.sh" "/home/andres/Documents/OpenCogInternship/NLP_learn/tools/createDictionary.jl" "$@"
+"$ADAGRAM_PATH/run.sh" "$ADAGRAM_PATH/utils/dictionary_MST.jl" "$@"

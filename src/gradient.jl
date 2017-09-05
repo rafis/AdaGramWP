@@ -115,8 +115,8 @@ end
 
 # Modified to call modified read_words properly
 # doc is now a list of lists of words w/their contexts
-function inplace_train_vectors!(vm::VectorModel, dict::Dictionary, path::AbstractString,
-		window_length::Int; batch::Int = 64000, start_lr::Float64 = 0.025,
+function inplace_train_vectors!(vm::VectorModel, dict::Dictionary, path::AbstractString; 
+	    batch::Int = 64000, start_lr::Float64 = 0.025,
 		log_path::Union{AbstractString, Void} = nothing, threshold::Float64 = Inf,
 		context_cut::Bool = true, epochs::Int = 1, init_count::Float64=-1, sense_treshold::Float64=1e-32)
 	for w in 1:V(vm)

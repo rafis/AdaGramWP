@@ -17,10 +17,6 @@ s = ArgParseSettings()
     help = "file to save the model (in Julia format)"
     arg_type = AbstractString
     required = true
-  "--window"
-    help = "(max) window size"
-    arg_type = Int
-    default = 4
   "--workers"
     help = "number of workers for parallel training"
     arg_type = Int

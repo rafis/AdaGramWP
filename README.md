@@ -4,11 +4,12 @@ Adaptive Skip-gram (AdaGram) model is a nonparametric extension of famous Skip-g
 
 ## Installation
 
-AdaGram is not in the julia package repository yet, so it should be installed in the following way:
+This modified version of AdaGram should be installed in the following way:
 ```
-Pkg.clone("https://github.com/sbos/AdaGram.jl.git")
+Pkg.clone("https://github.com/glicerico/AdaGram.jl.git")
 Pkg.build("AdaGram")
 ```
+Then switch to the WordPairs branch in the installation folder (~/.julia/v0.4/AdaGram) (the version could be different for you)
 
 ## Training a model
 
@@ -24,7 +25,6 @@ usage: train.jl [--window WINDOW] [--workers WORKERS]
                 train dict output
 ```
 Here is the description of all parameters:
-* `WINDOW` is a half-context size. Useful values are 3-10.
 * `WORKERS` is how much parallel processes will be used for training.
 * `MIN-FREQ` specifies the minimum word frequency below which a word will be ignored. Useful values are 5-50 depending on the corpora.
 * `REMOVE-TOP-K` allows to ignore K most frequent words as well. 
@@ -59,7 +59,7 @@ Example, for the text: The old dog is God. The cat is not.
 3 ..
 ```
 
-(Obsolete: Training text should be formatted as for word2vec. Words are case-sensitive and are assumed to be separated by space characters. All punctuation should be removed unless specially intented to be preserved. You may use `utils/tokenize.sh INPUT_FILE OUTPUT_FILE` for simple tokenization with UNIX utils.)
+Words are case-sensitive.
 
 In order to train a model you should also provide a dictionary file with word frequency statistics in the following format:
 ```
@@ -68,7 +68,7 @@ word2   456
 ...
 wordN   83
 ```
-AdaGram will assume that provided word frequencies are actually obtained from training file. You may build a dictionary file using `utils/dictionary.sh INPUT_FILE DICT_FILE`.
+AdaGram will assume that provided word frequencies are actually obtained from training file. You may build a dictionary file using `utils/dictionary_MST.sh INPUT_FILE DICT_FILE`.
 
 ## Playing with a model
 
@@ -157,13 +157,23 @@ A k-means clustering algorithm is provided to classify words in a given number o
 julia> clustering(vm, dict, outputFile"clustering_output_file", 10; min_prob=1e-3)
 ```
 
-A variation of k-means clustering is also provided, inspired by the clustering algorithm by Clark (2000) where only termination_fraction of the words get assigned to clusters (the ones closest to their closest cluster) and nearby clusters can merge if they're closer than merging_threshold. The function's prototype is:
+A variation of k-means clustering is also provided, inspired by the clustering algorithm by Clark (2000) where only termination_fraction of the words get gradually assigned to clusters (the ones closest to their closest cluster) and nearby clusters can merge if they're closer than merging_threshold. The function's prototype is:
 ```
 function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::AbstractString;
 	    K::Integer=100, min_prob=1e-2, termination_fraction=0.8, merging_threshold=0.9,
         fraction_increase=0.05)
 ```
 Clark, 2000: http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.480.9220&rep=rep1&type=pdf
+The parameters are:
+* vm: trained adagram vector model to use
+* dict: dictionary structure to use
+* outputFile: name to assign to output file
+Optional paramenters:
+* K is the number of clusters to be obtained
+* min_prob specifies the minimum probability that a sense needs to have to be considered for clustering
+* termination_fraction is the percentage of all the word senses that will be clustered
+* merging_threshold specifies how close (cosine distance) the centers of two clusters need to be to be merged into one cluster
+* fraction_increase determines the percentage increase of words to be clustered in each iteration
 
 Plase refer to [API documentation](https://github.com/sbos/AdaGram.jl/wiki/API) for more detailed usage info.
 ## Future work

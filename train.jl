@@ -20,15 +20,15 @@ s = ArgParseSettings()
   "--window"
     help = "(max) window size"
     arg_type = Int
-    default = 4
+    default = 2
   "--workers"
     help = "number of workers for parallel training"
     arg_type = Int
-    default = 1
+    default = 12
   "--min-freq"
     help = "min. frequency of the word"
     arg_type = Int
-    default = 20
+    default = 40
   "--remove-top-k"
     help = "remove top K most frequent words"
     arg_type = Int

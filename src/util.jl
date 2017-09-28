@@ -292,14 +292,19 @@ function clustering(vm::VectorModel, dict::Dictionary, outputFile::AbstractStrin
 	println("Finished clustering")
 end
 
-# clustering routine using k-means, modified in the spirit of Clark2000 to account
-# for words that don't clearly fit in a cluster and merging clusters
+# clustering routine using k-means with cosine distance, modified in the spirit of Clark2000 to account
+# for words that don't clearly fit in a cluster, as well as cluster merging.
+# Added tag_flag to find most appropriate tag from separate tagged dictionary file (tagged
+# with Link Grammar) and write it in the clustered file (for evaluation of clusters purposes).
+# Added embeddings_flag to write to file the embedding vectors of the words (for visualization purposes).
 function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::AbstractString;
-	    K::Integer=100, min_prob=1e-2, termination_fraction=0.8, merging_threshold=0.9,
-        fraction_increase=0.05)
+	    K::Integer=15, min_prob=1e-2, termination_fraction=0.8, merging_threshold=0.9,
+        fraction_increase=0.05, tag_flag = false, dict_path = "null", min_freq = 1, 
+        embeddings_flag = false, embeddings_filename = "embeddings.dat")
+    embeddings = [] # non-normalized embeddings
     wordVectors = []
     senses = Int64[]
-    wordFrequencies = Int64[]
+    senseFrequencies = Int64[]
     clusters = []
 
     function calculateCenter(currentCluster::Int64)
@@ -307,10 +312,65 @@ function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::Abstract
         for iMember in 1:length(clusters[currentCluster])
             currentCenter += wordVectors[clusters[currentCluster][iMember]]
         end
-        #currentCenter /= length(clusters[iCluster]) # averages the centers of every member of the class
+        #currentCenter /= length(clusters[currentCluster]) # averages the centers of every member of the class
         currentCenter /= norm(currentCenter) # normalizes the center vector
         return currentCenter
     end
+
+    # Creates a dictionary that will store each word root in the
+    # dict_path provided, with its different tags
+    # and corresponding frequency ranking
+    function loadTaggedDict(dict_path::AbstractString, min_freq::Int)
+        wordDict = Dict()
+        fi = open(dict_path, "r")
+        while !eof(fi)
+            line = split(readline(fi))
+            sense = line[1]
+            senseFreq = parse(Int, line[2])
+
+            # only stores words that occur at least min-freq times
+            if senseFreq >= min_freq
+                # look for the tag
+                splitWord = rsplit(UTF8String(sense), "[", limit = 2)
+                taggedPart = rsplit(UTF8String(splitWord[end]), ".", limit = 2)
+                #finalTaggedPart = rsplit(UTF8String(taggedPart[end]), "#", limit = 2)
+
+                if length(taggedPart) > 1
+                #    tag = finalTaggedPart[end]
+                    tag = taggedPart[end]
+                else
+                    tag = ""
+                end
+                # look for the root word
+                if length(splitWord) > 1
+                    wordKey = splitWord[1]
+                else
+                    wordKey = taggedPart[1]
+                end
+
+                if !haskey(wordDict, wordKey)
+                    wordDict[wordKey] = []
+                end
+                push!(wordDict[wordKey], [tag, senseFreq])
+            end
+        end
+
+        # calculates frequency ranking of tag compared to other
+        # tags for the same word
+        for iEntry in wordDict
+            suma = 0
+            for iValue in iEntry[2]
+                suma += iValue[2]
+            end
+            for iValue in iEntry[2]
+                iValue[2] /= suma
+            end
+        end
+        close(fi)
+        return wordDict
+    end
+
+    # Clustering program starts
 
     # Builds arrays of senses and their vectors
     for w in 1:V(vm)
@@ -319,8 +379,9 @@ function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::Abstract
             # ignores senses that do not reach min probability
             if probVec[iMeaning] > min_prob
                 push!(senses, w)
-                push!(wordFrequencies, round(vm.counts[iMeaning, w]))
+                push!(senseFrequencies, round(vm.counts[iMeaning, w]))
                 currentVec = vm.In[:, iMeaning, w]
+                push!(embeddings, currentVec)
                 push!(wordVectors, currentVec/norm(currentVec)) # normalizes wordVectors
             end
         end
@@ -328,7 +389,7 @@ function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::Abstract
 
 
     numSenses = length(senses) # total num of unique senses to cluster
-    orderFreq = sortperm(wordFrequencies, rev = true) # ordered indexes of most freq. senses
+    orderFreq = sortperm(senseFrequencies, rev = true) # ordered indexes of most freq. senses
 
     # Initialize clusters with the next most frequent sense available
     # and cluster centers with zeros
@@ -343,7 +404,7 @@ function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::Abstract
     closestClusterDistance = zeros(Float32, numSenses)
 
     numClusteredSenses = K 
-    orderDistance = Int64[]
+    orderDistance = Int32[]
     # keeps clustering senses until termination_fraction of them are clustered
     while numClusteredSenses <= numSenses * termination_fraction
         # calculate cluster centers
@@ -353,7 +414,7 @@ function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::Abstract
 
         mergeFlag = false
         # If two clusters are close enough, merge and flag to return to loop start
-        for iCluster in 1:K
+        for iCluster in 1:K - 1
             for iCluster2 in iCluster + 1:K
                 separation = dot(clusterCenters[iCluster], clusterCenters[iCluster2])
                 if separation > merging_threshold
@@ -361,7 +422,7 @@ function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::Abstract
                     # Resets merged cluster to highest freq. unclustered sense
                     numClusteredSenses += 1
                     clusters[iCluster2] = [orderFreq[numClusteredSenses]]
-                    println("Merged 2 clusters, started a new one")
+                    println("Merged clusters $iCluster and $iCluster2, reassigned the latter")
                     mergeFlag = true
                     break
                 end
@@ -382,7 +443,7 @@ function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::Abstract
                 end
             end
             closestCluster[iWord] = clusterId
-            closestClusterDistance[iWord] = projection
+            closestClusterDistance[iWord] = projection # cosine distance, larger is closer
         end
 
         # get sense order relative to distance to their nearest cluster
@@ -403,15 +464,108 @@ function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::Abstract
 
     # the less frequent senses fall into a cluster in position K+1 (unclustered senses)
     push!(clusters, orderDistance[numClusteredSenses + 1:end])
+    println("Cluster size percentage:")
+    for i in 1:K + 1
+        @printf("%0.2f ", length(clusters[i])/numSenses * 100)
+    end
+    @printf("\n")
 
-    # write to specified output file
     fo = open(outputFile, "w")
-    for iCluster in 1:length(clusters)
-        for iMember in 1:length(clusters[iCluster])
-            @printf(fo, "%s\t%d\n", dict.id2word[senses[clusters[iCluster][iMember]]], iCluster)
+    # different routes if words must be tagged or not
+    counterNotFound = 0
+    if tag_flag
+        println("Writing tagged clusters file")
+        wordDict = loadTaggedDict(dict_path, min_freq)
+        for iCluster in 1:length(clusters)
+            for iMember in 1:length(clusters[iCluster])
+                wordId = senses[clusters[iCluster][iMember]] 
+                word = dict.id2word[wordId]
+                notFound = false
+
+                # ranks the sense relative to the total word count
+                senseFreq = senseFrequencies[clusters[iCluster][iMember]]
+                wordFreq = vm.frequencies[wordId]
+                senseRank = senseFreq / wordFreq
+
+                if !haskey(wordDict, word)
+                    # try to find lowercase version
+                    word = string(lowercase(word[1]), word[2:end])
+                    if !haskey(wordDict, word)
+                        #println("$word not found in dictionary")
+                        counterNotFound += 1
+                        tag = ""
+                        notFound = true
+                    end
+                end
+                if !notFound
+                    # compares sense rank to the rank of the tags for the word
+                    # to assign most adequate tag
+                    arrayTags = wordDict[word]
+                    rankDistance = Inf
+                    tag = ""
+                    for iTag in arrayTags
+                        currentDistance = abs(iTag[2] - senseRank) 
+                        if currentDistance < rankDistance
+                            rankDistance = currentDistance
+                            tag = iTag[1]
+                        end
+                    end
+                end
+                taggedWord = string(word, ".", tag)
+                @printf(fo, "%s\t%d\n", taggedWord, iCluster)
+            end
+        end
+        println("$counterNotFound words not found in dictionary")
+    else
+        @printf(fo, "Word\tClusterNbr\n")
+        # decides if write embeddings or not
+        if embeddings_flag
+            fEmbeddings = open(embeddings_filename, "w")
+            # write to specified output file
+            println("Writing clusters file")
+            for iCluster in 1:length(clusters)
+                for iMember in 1:length(clusters[iCluster])
+                    @printf(fo, "%s\t%d\n", dict.id2word[senses[clusters[iCluster][iMember]]], iCluster)
+                    for iDim in 1:M(vm)
+                        @printf(fEmbeddings, "%f ", embeddings[clusters[iCluster][iMember]][iDim])
+                    end
+                    @printf(fEmbeddings, "\n")
+                end
+            end
+            close(fEmbeddings)
+        else
+            # write to specified output file
+            println("Writing clusters file")
+            for iCluster in 1:length(clusters)
+                for iMember in 1:length(clusters[iCluster])
+                    @printf(fo, "%s\t%d\n", dict.id2word[senses[clusters[iCluster][iMember]]], iCluster)
+                end
+            end
+        end
+    end
+
+    println("Finished writing clusters file")
+    close(fo)
+end
+
+# Writes embeddings to file to be used for visualization with TensorBoard
+function writeEmbeddings(vm::VectorModel, dict::Dictionary, embeddings_file::AbstractString; min_prob = 1e-2)
+    fo = open(embeddings_file, "w")
+    fMetadata = open(string("metadata_", embeddings_file), "w")
+    for iWord in 1:V(vm)
+        probVec = expected_pi(vm, iWord)
+        for iSense in 1:T(vm)
+            if probVec[iSense] > min_prob
+                for iDim in 1:M(vm)
+                    @printf(fo, "%f ", vm.In[iDim, iSense, iWord])
+                end
+                @printf(fo, "\n")
+                @printf(fMetadata, "%s\n", dict.id2word[iWord])
+            end
         end
     end
     close(fo)
+    close(fMetadata)
 end
 
 export nearest_neighbors
@@ -419,4 +573,4 @@ export disambiguate
 export pi, write_extended
 export cos_dist, preprocess, read_word2vec, write_word2vec
 export load_model
-export clustering, clarkClustering
+export clustering, clarkClustering, writeEmbeddings

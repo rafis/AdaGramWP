@@ -1,4 +1,4 @@
-using AdaGram
+using AdaGramWP
 
 type Context
     position::Int

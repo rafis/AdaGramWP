@@ -1,21 +1,22 @@
-# AdaGram (modified)
+# AdaGramWP (modified from AdaGram)
 
-Adaptive Skip-gram (AdaGram) model is a nonparametric extension of famous Skip-gram model implemented in word2vec software which  is able to learn multiple representations per word capturing different word meanings. This projects implements AdaGram in Julia language.
+Adaptive Skip-gram (AdaGram) model is a nonparametric extension of famous Skip-gram model implemented in word2vec software which  is able to learn multiple representations per word capturing different word meanings. The original repository (sbos/AdaGram.jl) implements AdaGram in Julia language.
+
+This modified version, AdaGramWP (for AdaGram Word Pairs), requires that the input text has been organized in a specific way (see section below), coming from some kind of linking of each sentence's words in the training corpus. The idea is that, this way, the embedded representation of a word will be trained only with those words that have a close relation to it (linked to it in a previous step, perhaps through parsing), thus reducing noise in the corpus.
 
 ## Installation
 
-This modified version of AdaGram should be installed in the following way:
+AdaGramWP should be installed in the following way:
 ```
-Pkg.clone("https://github.com/glicerico/AdaGram.jl.git")
-Pkg.build("AdaGram")
+Pkg.clone("https://github.com/glicerico/AdaGramWP.git")
+Pkg.build("AdaGramWP")
 ```
-Then switch to the WordPairs branch in the installation folder (~/.julia/v0.4/AdaGram) (the version could be different for you)
 
 ## Training a model
 
-The most straightforward way to train a model is to use `train.sh` script. If you run it with no parameters passed or with `--help` option, it will print usage information:
+The most straightforward way to train a model is to use `train.sh` script in the installation folder (by default: ~/.julia/v0.4/AdaGramWP, Julia version could be different in your system). If you run it with no parameters passed or with `--help` option, it will print usage information:
 ```
-usage: train.jl [--window WINDOW] [--workers WORKERS]
+usage: train.jl [--workers WORKERS]
                 [--min-freq MIN-FREQ] [--remove-top-k REMOVE-TOP-K]
                 [--dim DIM] [--prototypes PROTOTYPES] [--alpha ALPHA]
                 [--d D] [--subsample SUBSAMPLE] [--context-cut]
@@ -45,8 +46,9 @@ Here is the description of all parameters:
 
 ## Input format
 
-Training text should have a specific format that has one pair of linked words per line. Each line has to start with a sentence number (to identify the end of a sentence), followed by the first linked word position, the first word, the second word position and the second word.
-Example, for the text: The old dog is God. The cat is not.
+AdaGramWP requires training text to have a specific format that has one pair of linked words per line. 
+Each line has to start with a sentence number (to allow identification of the end of a sentence), followed by: the first linked word position in the sentence, the first word, the second word position and the second word.
+Example, for the text: The old dog is God. The cat is not..
 
 ```
 1 4 is 5 god
@@ -68,15 +70,16 @@ word2   456
 ...
 wordN   83
 ```
-AdaGram will assume that provided word frequencies are actually obtained from training file. You may build a dictionary file using `utils/dictionary_MST.sh INPUT_FILE DICT_FILE`.
+AdaGramWP will assume that provided word frequencies are actually obtained from training file.
+You may build a dictionary file from an MST-parsed file by using `utils/dictionary_MST.sh INPUT_FILE DICT_FILE`.
 
 ## Playing with a model
 
- After model is trained, you may use learned word vectors in the same way as ones learned by word2vec. However, since AdaGram learns several vectors for each word, you may need to _disambiguate_ a word using its context first, in order to determine which vector should be used.
+ After model is trained, you may use learned word vectors in the same way as ones learned by word2vec. However, since AdaGramWP learns several vectors for each word, you may need to _disambiguate_ a word using its context first, in order to determine which vector should be used.
 
 First, load the model and the dictionary:
 ```
-julia> using AdaGram
+julia> using AdaGramWP
 julia> vm, dict = load_model("PATH_TO_THE_MODEL");
 ```
 
@@ -151,29 +154,6 @@ julia> disambiguate(vm, dict, "apple", split("fresh tasty breakfast"))
  ⋮         
 ```
 As one may see, model correctly estimated probabilities of each sense with quite large confidence. Vector corresponding to second prototype of word "apple" can be obtained from `vm.In[:, 2, dict.word2id["apple"]]` and then used as context-aware features of word "apple".
-
-A k-means clustering algorithm is provided to classify words in a given number of clusters (default 100) using their embeddings. The algorithm is taken from the one included in word2vec. Because a word can have different meanings, they can (and should in many cases) be assigned to different clusters. The algorithm writes word meanings above a given prior probability minimum (default 1e-3) and the cluster they belong to.
-```
-julia> clustering(vm, dict, outputFile"clustering_output_file", 10; min_prob=1e-3)
-```
-
-A variation of k-means clustering is also provided, inspired by the clustering algorithm by Clark (2000) where only termination_fraction of the words get gradually assigned to clusters (the ones closest to their closest cluster) and nearby clusters can merge if they're closer than merging_threshold. The function's prototype is:
-```
-function clarkClustering(vm::VectorModel, dict::Dictionary, outputFile::AbstractString;
-	    K::Integer=100, min_prob=1e-2, termination_fraction=0.8, merging_threshold=0.9,
-        fraction_increase=0.05)
-```
-Clark, 2000: http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.480.9220&rep=rep1&type=pdf
-The parameters are:
-* vm: trained adagram vector model to use
-* dict: dictionary structure to use
-* outputFile: name to assign to output file
-Optional paramenters:
-* K is the number of clusters to be obtained
-* min_prob specifies the minimum probability that a sense needs to have to be considered for clustering
-* termination_fraction is the percentage of all the word senses that will be clustered
-* merging_threshold specifies how close (cosine distance) the centers of two clusters need to be to be merged into one cluster
-* fraction_increase determines the percentage increase of words to be clustered in each iteration
 
 Plase refer to [API documentation](https://github.com/sbos/AdaGram.jl/wiki/API) for more detailed usage info.
 ## Future work

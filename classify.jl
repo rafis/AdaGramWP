@@ -25,7 +25,7 @@ end
 
 args = parse_args(ARGS, s)
 
-using AdaGram
+using AdaGramWP
 
 print("Starting clustering...")
 

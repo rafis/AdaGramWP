@@ -1,4 +1,4 @@
-using AdaGram
+using AdaGramWP
 
 vm, dict = load_model(ARGS[1])
 window = parse(Int32, ARGS[2])

@@ -81,7 +81,7 @@ args = parse_args(ARGS, s)
 
 addprocs(args["workers"])
 
-using AdaGram
+using AdaGramWP
 
 stopwords = Set{AbstractString}()
 if args["stopwords"] != nothing

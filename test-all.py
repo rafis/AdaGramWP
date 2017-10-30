@@ -86,7 +86,7 @@ if __name__ == '__main__':
         print('\n')
 
     # do sup_eval only for semeval-2010, as the keys are not available for semeval 2007
-    subprocess.call('cd sup_eval/scripts; ./sup_eval.sh ../../__result__.tmp . ../60_40/all/mapping.1.key ../60_40/all/test.1.key; cd ../../', shell=True)
+    subprocess.call('cd sup_eval/scripts; ./sup_eval.sh ../../__result__.tmp . ../60_40/verbs/mapping.verbs.1.key ../60_40/verbs/test.verbs.1.key; cd ../../', shell=True)
     os.remove('__result__.tmp')
 
     #subprocess.call('./run.sh benchmark/test_wwsi.jl %s __result__.tmp' % model, shell=True)

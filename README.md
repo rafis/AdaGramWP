@@ -70,8 +70,8 @@ word2   456
 ...
 wordN   83
 ```
-AdaGramWP will assume that provided word frequencies are actually obtained from training file.
-You may build a dictionary file from an MST-parsed file by using `utils/dictionary_MST.sh INPUT_FILE DICT_FILE`.
+AdaGramWP will assume that provided word frequencies are actually obtained from the training file.
+You may build a dictionary file from an MST-parsed file by using `utils/dictionaryWP.sh INPUT_FILE DICT_FILE`.
 
 ## Playing with a model
 

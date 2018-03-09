@@ -48,26 +48,17 @@ M(vm::VectorModel) = size(vm.In, 1) #dimensionality of word vectors
 T(vm::VectorModel) = size(vm.In, 2) #number of meanings
 V(vm::VectorModel) = size(vm.In, 3) #number of words
 
-view(x::SharedArray, i1::Subs, i2::Subs) = view(sdata(x), i1, i2)
-view(x::SharedArray, i1::Subs, i2::Subs, i3::Subs) = view(sdata(x), i1, i2, i3)
+# view(x::SharedArray, i1::Subs, i2::Subs) = view(sdata(x), i1, i2)
+# view(x::SharedArray, i1::Subs, i2::Subs, i3::Subs) = view(sdata(x), i1, i2, i3)
 
 function shared_rand{T}(dims::Tuple, norm::T)
-	S = SharedArray(T, dims; init = S -> begin
-			chunk = localindexes(S)
-			chunk_size = length(chunk)
-			data = rand(chunk_size)
-			@devec data = (data - 0.5) ./ norm
-			S[chunk] = data
-		end)
+    S = rand(T, dims)
+    @devec S = (S - 0.5) ./ norm
 	return S
 end
 
 function shared_zeros{T}(::Type{T}, dims::Tuple)
-	S = SharedArray(T, dims; init = S -> begin
-			chunk = localindexes(S)
-			chunk_size = length(chunk)
-			S[chunk] = 0.
-		end)
+    S = zeros(T, dims)
 	return S
 end
 
@@ -149,7 +140,7 @@ export vec, closest_words
 export finalize!
 export save_model, read_from_file, dict_from_file, build_from_file
 export disambiguate, write_dictionary
-export likelihood, parallel_likelihood
+export likelihood
 export expected_pi!, expected_pi
 export load_model
 

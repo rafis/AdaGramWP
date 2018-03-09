@@ -21,10 +21,6 @@ s = ArgParseSettings()
     help = "(max) window size"
     arg_type = Int
     default = 4
-  "--workers"
-    help = "number of workers for parallel training"
-    arg_type = Int
-    default = 1
   "--min-freq"
     help = "min. frequency of the word"
     arg_type = Int
@@ -83,8 +79,6 @@ end
 
 args = parse_args(ARGS, s)
 
-addprocs(args["workers"])
-
 using AdaGram
 
 stopwords = Set{AbstractString}()
@@ -102,8 +96,12 @@ vm.d = args["d"]
 
 window = args["window"]
 
-inplace_train_vectors!(vm, dict, args["train"], window;
+file = open(args["train"])
+
+inplace_train_vectors!(vm, dict, file, window;
   threshold=args["subsample"], context_cut=args["context-cut"],
   epochs=args["epochs"], init_count=args["init-count"], sense_treshold=args["sense-treshold"])
+
+close(file)
 
 save_model(args["output"], vm, dict, args["save-treshold"])

@@ -107,7 +107,7 @@ function var_update_counts!(vm::VectorModel, x::Integer,
 	end
 end
 
-function inplace_train_vectors!(vm::VectorModel, dict::Dictionary, path::AbstractString,
+function inplace_train_vectors!(vm::VectorModel, dict::Dictionary, file::IO,
 		window_length::Int; batch::Int = 64000, start_lr::Float64 = 0.025,
 		log_path::Union{AbstractString, Void} = nothing, threshold::Float64 = Inf,
 		context_cut::Bool = true, epochs::Int = 1, init_count::Float64=-1, sense_treshold::Float64=1e-32)
@@ -115,47 +115,32 @@ function inplace_train_vectors!(vm::VectorModel, dict::Dictionary, path::Abstrac
 		vm.counts[1, w] = init_count > 0 ? init_count : vm.frequencies[w]
 	end
 
-	nbytes = filesize(path)
+#	nbytes = filesize(path)
 	train_words = Float64(sum(vm.frequencies)) * epochs
 
 	words_read = shared_zeros(Int64, (1,))
 	total_ll = shared_zeros(Float64, (2,))
 
-	function do_work(id::Int)
-		file = open(path)
+	id = 1
 
-		bytes_per_worker = convert(Int, floor(nbytes / nworkers()))
+	start_pos = 0
+	end_pos = -1
 
-		start_pos = bytes_per_worker * (id-1)
-		end_pos = start_pos+bytes_per_worker
+#	seek(file, start_pos)
+	align(file)
+	buffer = zeros(Int32, batch)
+	while words_read[1] < train_words
+		doc = read_words(file, start_pos, end_pos, dict, buffer,
+			vm.frequencies, threshold, words_read, train_words)
 
-		seek(file, start_pos)
-		align(file)
-		buffer = zeros(Int32, batch)
-		while words_read[1] < train_words
-			doc = read_words(file, start_pos, end_pos, dict, buffer,
-				vm.frequencies, threshold, words_read, train_words)
-
-			println("$(length(doc)) words read, $(position(file))/$end_pos")
-			if length(doc) == 0
-				break
-			end
-
-			inplace_train_vectors!(vm, doc, window_length,
-				start_lr, train_words, words_read, total_ll;
-				context_cut = context_cut, sense_treshold = sense_treshold)
+		println("$(length(doc)) words read, $(position(file))/$end_pos")
+		if length(doc) == 0
+			break
 		end
 
-		close(file)
-	end
-
-	refs = Array(RemoteRef, nworkers())
-	for i in 1:nworkers()
-		refs[i] = remotecall(i+1, do_work, i)
-	end
-
-	for i in 1:nworkers()
-		fetch(refs[i])
+		inplace_train_vectors!(vm, doc, window_length,
+			start_lr, train_words, words_read, total_ll;
+			context_cut = context_cut, sense_treshold = sense_treshold)
 	end
 
 	println("Learning complete $(words_read[1]) / $train_words")

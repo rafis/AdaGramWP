@@ -9,6 +9,11 @@ log_sigmoid(x) = -log(1. + exp(-x))
 Tsf = Float32
 Tw = Int32
 
+superlib = Libdl.dlopen(dirname(dirname(@__FILE__)) * "/lib/superlib.so")
+superlib_inplace_update = Libdl.dlsym(superlib, "inplace_update")
+superlib_update_z = Libdl.dlsym(superlib, "update_z")
+superlib_skip_gram = Libdl.dlsym(superlib, "skip_gram")
+
 include("softmax.jl")
 
 import ArrayViews.view
